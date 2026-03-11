@@ -5,4 +5,8 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8.8"
+pokemon-tcg-sdk = "0.3.0"
+propelauth = { version = "0.23.4", features = ["axum08"] }
+rustemon = { version = "4.5.0", features = ["serialize"] }
+serde_json = "1.0.149"
 tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
