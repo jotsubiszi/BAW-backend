@@ -1,16 +1,27 @@
-use axum::{Router, extract::Path, http::StatusCode, response::Json, routing::get};
+use axum::{
+    Router,
+    extract::Path,
+    http::{Method, StatusCode},
+    response::Json,
+    routing::get,
+};
 use serde_json::{Value, json};
 use tcgdex_api::{CardBrief, Query, Tcgdex};
+use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() {
-    // build our application with a single route
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/pokeapi/{poke}", get(rustemon_api_handler))
-        .route("/tcgapi/{poke}", get(tcg_api_handler));
+        .route("/tcgapi/{poke}", get(tcg_api_handler))
+        .layer(cors);
 
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3333").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -52,6 +63,7 @@ async fn tcg_api_handler(
         let tcgdex = Tcgdex::new();
         let filter_str = format!("name={}", &poke_card_name);
         let filter = Query::new().with_filtering(vec![filter_str.as_str()]);
+
         tcgdex.cards().fetch::<Vec<CardBrief>>(Some(&filter))
     })
     .await
