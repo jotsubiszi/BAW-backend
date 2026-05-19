@@ -1,16 +1,32 @@
+mod login_handler;
+mod models;
+
 use axum::{
     Router,
     extract::Path,
     http::{Method, StatusCode},
     response::Json,
-    routing::get,
+    routing::{get, post},
 };
 use serde_json::{Value, json};
+use sqlx::postgres::PgPoolOptions;
+use std::env;
 use tcgdex_api::{CardBrief, Query, Tcgdex};
 use tower_http::cors::{Any, CorsLayer};
 
+use crate::login_handler::{get_user, google_login_handler};
+
 #[tokio::main]
 async fn main() {
+    let db_url = env::var("DATABASE_URL").expect("Brak zmiennej DATABASE_URL!");
+
+    // utworzenie puli połączeń
+    let pool = PgPoolOptions::new()
+        .max_connections(5) //Set maximum number of connections that this pool should maintain.
+        .connect(&db_url)
+        .await
+        .expect("Nie udało się połączyć z bazą...");
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
@@ -19,9 +35,14 @@ async fn main() {
     let app = Router::new()
         .route("/pokeapi/{poke}", get(rustemon_api_handler))
         .route("/tcgapi/{poke}", get(tcg_api_handler))
+        .route("/users/{id}", get(get_user))
+        .route("/auth/google", post(google_login_handler))
+        .with_state(pool)
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3333").await.unwrap();
+
+    println!("Server works on 0.0.0.0:3333");
     axum::serve(listener, app).await.unwrap();
 }
 
