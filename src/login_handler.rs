@@ -9,10 +9,12 @@ use crate::{middleware::AuthenticatedUser, models::users::User};
 
 pub async fn get_profile(
     State(pool): State<PgPool>,
-    auth_user: AuthenticatedUser, // axum SAM SPRAWDZIŁ TOKEN!
+    auth_user: AuthenticatedUser,
 ) -> Result<Json<User>, (StatusCode, String)> {
-    // Zobaczysz ten napis w terminalu Rusta, jeśli tylko React poprawnie wyśle token!
-    println!(">>> get_profile się odpaliło dla: {} <<<", auth_user.email);
+    println!(
+        ">>> 1. ROZPOCZYNAM DODAWANIE DO BAZY DLA: {} <<<",
+        auth_user.clerk_id
+    );
 
     let user = sqlx::query_as!(
         User,
@@ -29,13 +31,14 @@ pub async fn get_profile(
     .fetch_one(&pool)
     .await
     .map_err(|e| {
-        // TA LINIJKA JEST KLUCZOWA! Wyrzuci na ekran dokładny powód błędu SQL
-        eprintln!(">>> KRYTYCZNY BŁĄD SQL W GET_PROFILE: {:?} <<<", e);
+        eprintln!(">>> 2. KRYTYCZNY BŁĄD SQL: {:?} <<<", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Błąd bazy danych: {}", e), // Wysyłamy błąd też do Reacta!
+            "Błąd bazy danych".to_string(),
         )
     })?;
+
+    println!(">>> 3. SUKCES! USER DODANY DO BAZY: {} <<<", user.id);
 
     Ok(Json(user))
 }

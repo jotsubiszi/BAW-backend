@@ -10,7 +10,7 @@ use axum::{
     extract::Path,
     http::{Method, StatusCode},
     response::Json,
-    routing::{delete, get, patch},
+    routing::{delete, get, patch, post},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -41,7 +41,7 @@ async fn main() {
         .route("/pokeapi/{poke}", get(rustemon_api_handler))
         .route("/tcgapi/{poke}", get(tcg_api_handler))
         .route("/users/{id}", get(get_user))
-        .route("/auth/clerk", get(get_profile))
+        .route("/auth/clerk", post(get_profile))
         .route(
             "/api/collection",
             get(get_user_collection).post(add_card_to_collection),

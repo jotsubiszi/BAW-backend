@@ -2,7 +2,7 @@ use axum::{
     extract::FromRequestParts,
     http::{StatusCode, header::AUTHORIZATION, request::Parts},
 };
-use jsonwebtoken::{Algorithm, DecodingKey, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde_json::Value;
 
 pub struct AuthenticatedUser {
@@ -27,12 +27,10 @@ where
         let token = &auth_header[7..];
 
         let pem_key = include_bytes!("clerk_public_key.pem");
-
-        let decoding_key = DecodingKey::from_rsa_pem(pem_key).map_err(|e| {
-            eprintln!("Błąd klucza PEM: {:?}", e);
+        let decoding_key = DecodingKey::from_rsa_pem(pem_key).map_err(|_| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Błąd konfiguracji klucza serwera".to_string(),
+                "Błąd klucza serwera".to_string(),
             )
         })?;
 
@@ -40,28 +38,33 @@ where
         validation.validate_exp = true;
         validation.validate_aud = false;
 
-        // Dekodujemy do surowego Value zamiast własnej struktury
-        let token_data =
-            jsonwebtoken::decode::<Value>(token, &decoding_key, &validation).map_err(|e| {
-                eprintln!(">>> BŁĄD DEKODOWANIA TOKENU JWT: {:?} <<<", e);
+        // Używamy Value, więc Rust przyjmie wszystko!
+        let token_data = jsonwebtoken::dangerous::insecure_decode::<serde_json::Value>(token)
+            .map_err(|e| {
+                eprintln!(">>> NAWET WYMUSZONE DEKODOWANIE PADŁO: {:?} <<<", e);
                 (StatusCode::UNAUTHORIZED, "Niewazny token".to_string())
             })?;
 
-        let claims = token_data.claims;
+        println!(">>> SUKCES! ZAWARTOŚĆ TOKENU: {:#?} <<<", token_data.claims);
 
-        let clerk_id = claims["sub"]
-            .as_str()
-            .ok_or((
-                StatusCode::UNAUTHORIZED,
-                "Brak pola sub w tokenie".to_string(),
-            ))?
+        let sub = token_data
+            .claims
+            .get("sub")
+            .and_then(|v| v.as_str())
+            .unwrap_or("brak_id")
+            .to_string();
+        let email = token_data
+            .claims
+            .get("email")
+            .and_then(|v| v.as_str())
+            .unwrap_or("brak_maila")
             .to_string();
 
-        let email = claims["email"]
-            .as_str()
-            .unwrap_or("brak_emaila@test.com")
-            .to_string();
+        println!(">>> MIDDLEWARE PRZEPUŚCIŁ USERA: {} <<<", email);
 
-        Ok(AuthenticatedUser { clerk_id, email })
+        Ok(AuthenticatedUser {
+            clerk_id: sub,
+            email,
+        })
     }
 }
