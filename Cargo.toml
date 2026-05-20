@@ -10,7 +10,6 @@ bcrypt = "0.19.1"
 chrono = { version = "0.4.44", features = ["serde"] }
 dotenvy = "0.15.7"
 jsonwebtoken = { version = "10.4.0", features = ["aws-lc-rs"] }
-propelauth = { version = "0.23.4", features = ["axum08"] }
 reqwest = { version = "0.13.3", features = ["json"] }
 rustemon = { version = "4.5.0", features = ["serialize"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -20,4 +19,3 @@ tcgdex_api = "0.1.0"
 thiserror = "2.0.18"
 tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
-uuid = { version = "1.23.1", features = ["v4"] }

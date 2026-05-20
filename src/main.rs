@@ -1,4 +1,8 @@
+mod admin_handler;
+mod collection_handler;
+mod config;
 mod login_handler;
+mod middleware;
 mod models;
 
 use axum::{
@@ -6,15 +10,16 @@ use axum::{
     extract::Path,
     http::{Method, StatusCode},
     response::Json,
-    routing::{get, post},
+    routing::{delete, get, patch},
 };
+use serde::Deserialize;
 use serde_json::{Value, json};
 use sqlx::postgres::PgPoolOptions;
 use std::env;
 use tcgdex_api::{CardBrief, Query, Tcgdex};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::login_handler::{get_user, google_login_handler};
+use crate::{admin_handler::*, collection_handler::*, login_handler::*};
 
 #[tokio::main]
 async fn main() {
@@ -36,7 +41,22 @@ async fn main() {
         .route("/pokeapi/{poke}", get(rustemon_api_handler))
         .route("/tcgapi/{poke}", get(tcg_api_handler))
         .route("/users/{id}", get(get_user))
-        .route("/auth/google", post(google_login_handler))
+        .route("/auth/clerk", get(get_profile))
+        .route(
+            "/api/collection",
+            get(get_user_collection).post(add_card_to_collection),
+        )
+        .route("/api/admin/users", get(get_all_users))
+        .route("/api/admin/users/{clerk_id}", delete(delete_user))
+        .route("/api/admin/users/{clerk_id}/role", patch(update_user_role))
+        .route(
+            "/api/admin/users/{clerk_id}/collection",
+            get(get_user_collection_admin),
+        )
+        .route(
+            "/api/admin/users/{clerk_id}/collection/{card_id}",
+            delete(remove_card_from_user),
+        )
         .with_state(pool)
         .layer(cors);
 
@@ -46,12 +66,12 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-#[derive(serde::Serialize)]
-struct CardBriefResponse {
-    id: String,
-    local_id: String,
-    name: String,
-    image: String,
+#[derive(serde::Serialize, Deserialize)]
+pub struct CardBriefResponse {
+    pub id: String,
+    pub local_id: String,
+    pub name: String,
+    pub image: String,
 }
 
 impl From<CardBrief> for CardBriefResponse {
